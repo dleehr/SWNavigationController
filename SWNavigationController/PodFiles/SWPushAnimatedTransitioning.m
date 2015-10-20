@@ -19,24 +19,24 @@
 - (void)animateTransition:(id<UIViewControllerContextTransitioning>)transitionContext
 {
     UIView *containerView = [transitionContext containerView];
-    UIView *toView = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey].view;
-    UIView *fromView = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey].view;
-    
+    UIViewController *toViewController = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey];
+    UIViewController *fromViewController = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey];
     CGFloat containerViewWidth = containerView.frame.size.width;
-    UIView *snapshotToView = [toView snapshotViewAfterScreenUpdates:YES];
-    
-    [containerView addSubview:snapshotToView];
-    
     // Calculate new frame for fromView
-    CGRect fromViewFinalFrame = fromView.frame;
+    CGRect fromViewFinalFrame = fromViewController.view.frame;
     fromViewFinalFrame.origin.x = -containerViewWidth/3.f;
     
     // Calculate the new frame for toView snapshot
-    CGRect toViewFinalFrame = toView.frame;
-    toViewFinalFrame.origin.x = containerViewWidth;
-    
+    CGRect transitioningFrame = [transitionContext finalFrameForViewController:toViewController];
+    CGRect toViewFinalFrame = [transitionContext finalFrameForViewController:toViewController];
+    transitioningFrame.origin.x = containerViewWidth;
+
+    toViewController.view.frame = toViewFinalFrame;
+    UIView *snapshotToView = [toViewController.view snapshotViewAfterScreenUpdates:YES];
+    [containerView addSubview:snapshotToView];
+
     // Use a shadow path to make rendering during the interactive transition better 
-    snapshotToView.frame = toViewFinalFrame;
+    snapshotToView.frame = transitioningFrame;
     snapshotToView.layer.shadowRadius = kSWToLayerShadowRadius;
     snapshotToView.layer.shadowOpacity = kSWFromLayerShadowOpacity;
     CGRect shadowFrame = snapshotToView.layer.bounds;
@@ -53,16 +53,15 @@
     
     [UIView animateWithDuration:[self transitionDuration:transitionContext] delay:0 options:UIViewAnimationOptionCurveLinear animations:^{
         // Move views to final frames
-        snapshotToView.frame = fromView.frame;
-        fromView.frame = fromViewFinalFrame;
+        snapshotToView.frame = toViewFinalFrame;
+        fromViewController.view.frame = fromViewFinalFrame;
     } completion:^(BOOL finished) {
         snapshotToView.layer.shadowOpacity = 0;
-        
         [transitionContext completeTransition:![transitionContext transitionWasCancelled]];
         
         // If transition was not cancelled, actually add the toView to our view hierarchy
         if (![transitionContext transitionWasCancelled]) {
-            [containerView addSubview:toView];
+            [containerView addSubview:toViewController.view];
             [snapshotToView removeFromSuperview];
         }
     }];
